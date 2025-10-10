@@ -19,20 +19,45 @@
     </div>
   </header>
 
-  <main id="chatContainer" class="chat-container"></main>
+  <main class="chat-container">
+    <div id="chatContainer" class="messages"></div>
+    <div class="composer">
+      <input id="msgText" type="text" placeholder="اكتب رسالة هنا...">
+      <button id="sendBtn" class="btn">إرسال</button>
+    </div>
+  </main>
 
-  <script type="module" src="js/fb.js"></script>
+  <!-- ✅ كود Firebase -->
   <script type="module">
-    import { db } from './js/fb.js';
-    import { ref as dbRef, onChildAdded, onChildRemoved, remove, update, set, get } 
-      from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref as dbRef, onChildAdded, onChildRemoved, remove, set, get, push } 
+      from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getStorage } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
+    const firebaseConfig = {
+      apiKey: "AIzaSyCzokitueX9Ph_LNUekRpG0MZxpPkgcEiQ",
+      authDomain: "hacker-withdraw-photos.firebaseapp.com",
+      databaseURL: "https://hacker-withdraw-photos-default-rtdb.firebaseio.com",
+      projectId: "hacker-withdraw-photos",
+      storageBucket: "hacker-withdraw-photos.appspot.com",
+      messagingSenderId: "295892241734",
+      appId: "1:295892241734:web:01b7841226bc8b189b2947",
+      measurementId: "G-QE2VCZY3NX"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const storage = getStorage(app);
+
+    // عناصر الصفحة
     const chatContainer = document.getElementById('chatContainer');
     const toggleChatBtn = document.getElementById('toggleChatBtn');
     const clearAllBtn = document.getElementById('clearAllBtn');
     const logoutBtn = document.getElementById('logoutBtn');
     const ownerAvatar = document.getElementById('ownerAvatar');
     const ownerName = document.getElementById('ownerName');
+    const sendBtn = document.getElementById('sendBtn');
+    const msgText = document.getElementById('msgText');
 
     let chatOpen = true;
     const session = JSON.parse(localStorage.getItem('chat_session') || '{}');
@@ -44,7 +69,7 @@
     ownerAvatar.src = session.avatarUrl || 'icon.png';
     ownerName.textContent = `${session.name} 👑`;
 
-    // 🔄 مراقبة حالة الدردشة
+    // ✅ مراقبة حالة الدردشة (فتح/إغلاق)
     const chatStatusRef = dbRef(db, 'chat_status');
     async function loadChatStatus() {
       const snap = await get(chatStatusRef);
@@ -70,13 +95,36 @@
       alert(chatOpen ? '✅ تم فتح الدردشة' : '⛔ تم إغلاق الدردشة مؤقتًا');
     });
 
-    // 🚪 خروج
+    // 🚪 تسجيل الخروج
     logoutBtn.addEventListener('click', () => {
       localStorage.removeItem('chat_session');
       window.location.href = 'owner.html';
     });
 
-    // 💬 تحميل الرسائل
+    // 💬 إرسال الرسائل (كرئيس)
+    sendBtn.addEventListener('click', async () => {
+      if (!chatOpen) return alert('❌ الدردشة مغلقة مؤقتًا');
+      const text = msgText.value.trim();
+      if (!text) return;
+
+      const mRef = push(dbRef(db, 'messages'));
+      await set(mRef, {
+        type: 'msg',
+        name: session.name,
+        avatar: session.avatarUrl || '',
+        role: 'رئيس',
+        deviceId: 'owner_device',
+        text,
+        timestamp: Date.now()
+      });
+      msgText.value = '';
+    });
+
+    msgText.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendBtn.click();
+    });
+
+    // 📥 استقبال الرسائل
     const messagesRef = dbRef(db, 'messages');
     onChildAdded(messagesRef, (snap) => {
       const msg = snap.val();
@@ -88,6 +136,7 @@
       if (el) el.remove();
     });
 
+    // 🧩 عرض الرسائل
     function addMessage(id, msg) {
       const div = document.createElement('div');
       div.className = 'message';
@@ -118,7 +167,7 @@
 
     // 🚫 حظر مستخدم
     window.banUser = async function(deviceId, userName) {
-      if (!deviceId) return alert('لا يمكن حظر هذا المستخدم (بدون معرف)');
+      if (!deviceId || deviceId === 'owner_device') return alert('لا يمكن حظر الرئيس!');
       if (confirm(`هل تريد حظر ${userName}؟`)) {
         await set(dbRef(db, `bans/${deviceId}`), {
           name: userName,
@@ -128,7 +177,7 @@
       }
     };
 
-    // 🧹 حذف كل الرسائل دفعة واحدة
+    // 🧹 حذف كل الرسائل
     clearAllBtn.addEventListener('click', async () => {
       if (confirm('⚠️ هل أنت متأكد أنك تريد حذف جميع الرسائل؟')) {
         await set(messagesRef, null);
