@@ -83,13 +83,14 @@
     });
 
     async function saveOwner(name, avatarUrl) {
-      const userRef = push(dbRef(db, 'owners'));
-      await set(userRef, {
-        name,
-        avatarUrl,
-        role: 'رئيس',
-        joinedAt: Date.now()
-      });
+
+  const userRef = push(dbRef(db, 'users'));
+await set(userRef, {
+  name,
+  avatarUrl,
+  role: 'رئيس',
+  joinedAt: Date.now()
+});
 
       const session = {
         userKey: userRef.key,
@@ -112,3 +113,4 @@
   </script>
 </body>
 </html>
+
