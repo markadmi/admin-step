@@ -1,8 +1,11 @@
+// استيراد مكتبات Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+import { initializeAppCheck, ReCaptchaV3Provider } 
+  from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check.js";
 
-
+// إعدادات Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyCzokitueX9Ph_LNUekRpG0MZxpPkgcEiQ",
   authDomain: "hacker-withdraw-photos.firebaseapp.com",
@@ -14,13 +17,15 @@ const firebaseConfig = {
   measurementId: "G-QE2VCZY3NX"
 };
 
+// تهيئة التطبيق
 const app = initializeApp(firebaseConfig);
 
-
+// تفعيل App Check مع ReCaptcha V3
 const appCheck = initializeAppCheck(app, {
   provider: new ReCaptchaV3Provider('6LfnzuwrAAAAACmSjFTf1Nb8D9qSNqCoFuNIPPic'),
   isTokenAutoRefreshEnabled: true 
 });
 
+// تهيئة قاعدة البيانات والتخزين
 export const db = getDatabase(app);
 export const storage = getStorage(app);
