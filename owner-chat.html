@@ -60,27 +60,38 @@
     .btn.danger { background: #dc3545; color: white; }
     .btn.success { background: #28a745; color: white; }
     .btn.gray { background: #ccc; }
+
+    /* بعض تنسيقات لعرض الرسائل (لو لم تكن موجودة في CSS خارجي) */
+    .messages { padding: 12px; max-height: 60vh; overflow-y: auto; }
+    .message { display:flex; gap:10px; padding:8px; border-bottom:1px solid #eee; align-items:flex-start; }
+    .message .avatar { width:48px; height:48px; border-radius:50%; object-fit:cover; }
+    .message .content { flex:1; }
+    .message .meta { font-size:14px; margin-bottom:6px; color:#333; }
+    .message .role { font-size:12px; color:#777; margin-left:8px; }
+    .message .text { white-space:pre-wrap; color:#111; }
+    .message .actions { margin-top:8px; display:flex; gap:8px; }
+    .message .actions button { padding:6px 8px; border-radius:6px; border:none; cursor:pointer; }
   </style>
 </head>
 <body>
   <header class="top-bar">
     <div class="profile">
-      <img id="ownerAvatar" src="" alt="avatar">
+      <img id="ownerAvatar" src="" alt="avatar" style="width:48px;height:48px;border-radius:50%;">
       <span id="ownerName">الرئيس</span>
     </div>
     <div class="controls">
       <button id="toggleChatBtn" class="btn danger">🔒 إغلاق الدردشة</button>
       <button id="clearAllBtn" class="btn danger">🗑️ مسح الكل</button>
       <button id="btn_update" class="btn danger">نشر الفديوهات</button>
-      <button id="logoutBtn" class="btn">🚪 خروج</button>      
+      <button id="logoutBtn" class="btn">🚪 خروج</button>
     </div>
   </header>
 
   <main class="chat-container">
     <div id="chatContainer" class="messages"></div>
-    <div class="composer">
-      <input id="msgText" type="text" placeholder="اكتب رسالة هنا...">
-      <button id="sendBtn" class="btn">إرسال</button>
+    <div class="composer" style="display:flex;gap:8px;padding:12px;">
+      <input id="msgText" type="text" placeholder="اكتب رسالة هنا..." style="flex:1;padding:10px;border-radius:8px;border:1px solid #ccc;">
+      <button id="sendBtn" class="btn primary">إرسال</button>
     </div>
   </main>
 
@@ -133,17 +144,32 @@
     const cancelChatSettings = document.getElementById('cancelChatSettings');
     const chatMessageInput = document.getElementById('chatMessage');
 
+    const ownerAvatar = document.getElementById('ownerAvatar');
+    const ownerName = document.getElementById('ownerName');
+
+    // جلسة المدير (يجب أن تكون موجودة في localStorage كما في تطبيقك الأصلي)
+    const session = JSON.parse(localStorage.getItem('chat_session') || '{}');
+    if (!session || session.role !== 'رئيس') {
+      alert('ليس لديك صلاحية الدخول');
+      window.location.href = 'index.html';
+    }
+    ownerAvatar.src = session.avatarUrl || 'icon.png';
+    ownerName.textContent = `${session.name || 'الرئيس'} 👑`;
+
     let chatOpen = true;
     const chatStatusRef = dbRef(db, 'chat_status');
 
-    // تحميل حالة الدردشة
+    // تحميل حالة الدردشة عند البداية
     async function loadChatStatus() {
       const snap = await get(chatStatusRef);
       if (snap.exists()) {
-        chatOpen = snap.val().open;
+        chatOpen = !!snap.val().open;
         updateChatButton();
       } else {
+        // اعداد افتراضي
         await set(chatStatusRef, { open: true, mode: "temporary", message: "" });
+        chatOpen = true;
+        updateChatButton();
       }
     }
     loadChatStatus();
@@ -154,12 +180,12 @@
       toggleChatBtn.classList.toggle('success', !chatOpen);
     }
 
-    // ✅ فتح النافذة المنبثقة عند الضغط
+    // فتح النافذة المنبثقة عند الضغط (أو إعادة الفتح مباشرة)
     toggleChatBtn.addEventListener('click', () => {
       if (chatOpen) {
         modal.style.display = 'flex';
       } else {
-        // فتح الدردشة مباشرة
+        // إعادة فتح الدردشة مباشرة
         chatOpen = true;
         set(chatStatusRef, { open: true, mode: "temporary", message: "" });
         updateChatButton();
@@ -185,19 +211,129 @@
       alert('⛔ تم إغلاق الدردشة بنجاح');
     });
 
-    // 🚪 تسجيل الخروج
-    logoutBtn.addEventListener('click', () => {
+    // إرسال رسالة (كرئيس)
+    sendBtn.addEventListener('click', async () => {
+      if (!chatOpen) return alert('❌ الدردشة مغلقة مؤقتًا');
+      const text = msgText.value.trim();
+      if (!text) return;
+      const mRef = push(dbRef(db, 'messages'));
+      await set(mRef, {
+        type: 'msg',
+        name: session.name || 'الرئيس',
+        avatar: session.avatarUrl || '',
+        role: 'رئيس',
+        deviceId: 'owner_device',
+        text,
+        timestamp: Date.now()
+      });
+      msgText.value = '';
+    });
+    msgText.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendBtn.click(); });
+
+    // ======= هنا أهم التعديل: إعادة الاستماع للرسائل الحية =======
+    const messagesRef = dbRef(db, 'messages');
+    onChildAdded(messagesRef, (snap) => {
+      const msg = snap.val();
+      addMessage(snap.key, msg);
+    });
+
+    onChildRemoved(messagesRef, (snap) => {
+      const el = document.getElementById(`msg-${snap.key}`);
+      if (el) el.remove();
+    });
+
+    // دالة عرض الرسائل (تنشئ عناصر DOM بأمان)
+    function addMessage(id, msg) {
+      if (!msg) return;
+      // منع التكرار لو كانت الرسالة موجودة بالفعل
+      if (document.getElementById(`msg-${id}`)) return;
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'message';
+      wrapper.id = `msg-${id}`;
+
+      const avatar = document.createElement('img');
+      avatar.className = 'avatar';
+      avatar.src = msg.avatar || 'icon.png';
+      avatar.alt = msg.name || 'user';
+
+      const content = document.createElement('div');
+      content.className = 'content';
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      const strong = document.createElement('strong');
+      strong.textContent = msg.name || 'مستخدم';
+      const roleSpan = document.createElement('span');
+      roleSpan.className = 'role';
+      roleSpan.textContent = ` ${msg.role || ''}`;
+      meta.appendChild(strong);
+      meta.appendChild(roleSpan);
+
+      const textDiv = document.createElement('div');
+      textDiv.className = 'text';
+      textDiv.textContent = msg.text || '';
+
+      const actions = document.createElement('div');
+      actions.className = 'actions';
+
+      const delBtn = document.createElement('button');
+      delBtn.textContent = '🗑️ حذف';
+      delBtn.addEventListener('click', () => deleteMessage(id));
+
+      const banBtn = document.createElement('button');
+      banBtn.textContent = '🚫 حظر';
+      banBtn.addEventListener('click', () => banUser(msg.deviceId || '', msg.name || ''));
+
+      actions.appendChild(delBtn);
+      actions.appendChild(banBtn);
+
+      content.appendChild(meta);
+      content.appendChild(textDiv);
+      content.appendChild(actions);
+
+      wrapper.appendChild(avatar);
+      wrapper.appendChild(content);
+
+      chatContainer.appendChild(wrapper);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    // حذف رسالة واحدة
+    window.deleteMessage = async function(id) {
+      if (!id) return;
+      if (confirm('هل تريد حذف هذه الرسالة؟')) {
+        await remove(dbRef(db, `messages/${id}`));
+      }
+    };
+
+    // حظر مستخدم (بـ deviceId)
+    window.banUser = async function(deviceId, userName) {
+      if (!deviceId || deviceId === 'owner_device') return alert('لا يمكن حظر الرئيس!');
+      if (confirm(`هل تريد حظر ${userName || 'المستخدم'}؟`)) {
+        await set(dbRef(db, `bans/${deviceId}`), {
+          name: userName || '',
+          timestamp: Date.now()
+        });
+        alert(`${userName || 'المستخدم'} تم حظره ✅`);
+      }
+    };
+
+    // حذف كل الرسائل
+    clearAllBtn.addEventListener('click', async () => {
+      if (confirm('⚠️ هل تريد حذف كل الرسائل؟')) {
+        await set(dbRef(db, 'messages'), null);
+        chatContainer.innerHTML = '';
+        alert('✅ تم مسح جميع الرسائل');
+      }
+    });
+
+    // تسجيل الخروج
+    document.getElementById('logoutBtn').addEventListener('click', () => {
       localStorage.removeItem('chat_session');
       window.location.href = 'owner.html';
     });
 
-    // 🧹 حذف جميع الرسائل
-    clearAllBtn.addEventListener('click', async () => {
-      if (confirm('⚠️ هل تريد حذف كل الرسائل؟')) {
-        await set(dbRef(db, 'messages'), null);
-        alert('✅ تم مسح جميع الرسائل');
-      }
-    });
   </script>
 </body>
 </html>
