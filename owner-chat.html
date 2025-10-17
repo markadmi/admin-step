@@ -61,7 +61,7 @@
     .btn.success { background: #28a745; color: white; }
     .btn.gray { background: #ccc; }
 
-    /* بعض تنسيقات لعرض الرسائل (لو لم تكن موجودة في CSS خارجي) */
+    /* بعض تنسيقات لعرض الرسائل */
     .messages { padding: 12px; max-height: 60vh; overflow-y: auto; }
     .message { display:flex; gap:10px; padding:8px; border-bottom:1px solid #eee; align-items:flex-start; }
     .message .avatar { width:48px; height:48px; border-radius:50%; object-fit:cover; }
@@ -131,7 +131,6 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // عناصر الصفحة
     const toggleChatBtn = document.getElementById('toggleChatBtn');
     const logoutBtn = document.getElementById('logoutBtn');
     const chatContainer = document.getElementById('chatContainer');
@@ -147,7 +146,6 @@
     const ownerAvatar = document.getElementById('ownerAvatar');
     const ownerName = document.getElementById('ownerName');
 
-    // جلسة المدير (يجب أن تكون موجودة في localStorage كما في تطبيقك الأصلي)
     const session = JSON.parse(localStorage.getItem('chat_session') || '{}');
     if (!session || session.role !== 'رئيس') {
       alert('ليس لديك صلاحية الدخول');
@@ -159,14 +157,12 @@
     let chatOpen = true;
     const chatStatusRef = dbRef(db, 'chat_status');
 
-    // تحميل حالة الدردشة عند البداية
     async function loadChatStatus() {
       const snap = await get(chatStatusRef);
       if (snap.exists()) {
         chatOpen = !!snap.val().open;
         updateChatButton();
       } else {
-        // اعداد افتراضي
         await set(chatStatusRef, { open: true, mode: "temporary", message: "" });
         chatOpen = true;
         updateChatButton();
@@ -180,12 +176,10 @@
       toggleChatBtn.classList.toggle('success', !chatOpen);
     }
 
-    // فتح النافذة المنبثقة عند الضغط (أو إعادة الفتح مباشرة)
     toggleChatBtn.addEventListener('click', () => {
       if (chatOpen) {
         modal.style.display = 'flex';
       } else {
-        // إعادة فتح الدردشة مباشرة
         chatOpen = true;
         set(chatStatusRef, { open: true, mode: "temporary", message: "" });
         updateChatButton();
@@ -200,18 +194,14 @@
     saveChatSettings.addEventListener('click', async () => {
       const mode = document.querySelector('input[name="chatMode"]:checked').value;
       const message = chatMessageInput.value.trim() || "الدردشة مغلقة حاليًا.";
-      await set(chatStatusRef, {
-        open: false,
-        mode,
-        message
-      });
+      await set(chatStatusRef, { open: false, mode, message });
       chatOpen = false;
       updateChatButton();
       modal.style.display = 'none';
       alert('⛔ تم إغلاق الدردشة بنجاح');
     });
 
-    // إرسال رسالة (كرئيس)
+    // إرسال الرسائل
     sendBtn.addEventListener('click', async () => {
       if (!chatOpen) return alert('❌ الدردشة مغلقة مؤقتًا');
       const text = msgText.value.trim();
@@ -230,22 +220,20 @@
     });
     msgText.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendBtn.click(); });
 
-    // ======= هنا أهم التعديل: إعادة الاستماع للرسائل الحية =======
+    // 📥 استقبال الرسائل
     const messagesRef = dbRef(db, 'messages');
     onChildAdded(messagesRef, (snap) => {
       const msg = snap.val();
       addMessage(snap.key, msg);
     });
-
     onChildRemoved(messagesRef, (snap) => {
       const el = document.getElementById(`msg-${snap.key}`);
       if (el) el.remove();
     });
 
-    // دالة عرض الرسائل (تنشئ عناصر DOM بأمان)
+    // ✅ تعديل هنا: زر الحظر / فك الحظر
     function addMessage(id, msg) {
       if (!msg) return;
-      // منع التكرار لو كانت الرسالة موجودة بالفعل
       if (document.getElementById(`msg-${id}`)) return;
 
       const wrapper = document.createElement('div');
@@ -283,7 +271,7 @@
 
       const banBtn = document.createElement('button');
       banBtn.textContent = '🚫 حظر';
-      banBtn.addEventListener('click', () => banUser(msg.deviceId || '', msg.name || ''));
+      banBtn.addEventListener('click', () => toggleBan(msg.deviceId || '', msg.name || '', msg.role || '', banBtn));
 
       actions.appendChild(delBtn);
       actions.appendChild(banBtn);
@@ -297,9 +285,52 @@
 
       chatContainer.appendChild(wrapper);
       chatContainer.scrollTop = chatContainer.scrollHeight;
+
+      checkIfBanned(msg.deviceId || '', banBtn);
     }
 
-    // حذف رسالة واحدة
+    async function checkIfBanned(deviceId, button) {
+      if (!deviceId) return;
+      const snap = await get(dbRef(db, `bans/${deviceId}`));
+      if (snap.exists()) {
+        button.textContent = '✅ فك الحظر';
+        button.style.background = '#28a745';
+        button.dataset.banned = 'true';
+      } else {
+        button.textContent = '🚫 حظر';
+        button.style.background = '';
+        button.dataset.banned = 'false';
+      }
+    }
+
+    async function toggleBan(deviceId, userName, role, button) {
+      if (!deviceId) return alert('لا يمكن حظر مستخدم بدون deviceId');
+      if (role === 'رئيس') return alert('❌ لا يمكن حظر الرئيس');
+
+      const isBanned = button.dataset.banned === 'true';
+      if (isBanned) {
+        if (confirm(`هل تريد فك الحظر عن ${userName || 'المستخدم'}؟`)) {
+          await remove(dbRef(db, `bans/${deviceId}`));
+          button.textContent = '🚫 حظر';
+          button.style.background = '';
+          button.dataset.banned = 'false';
+          alert(`${userName || 'المستخدم'} تم فك الحظر ✅`);
+        }
+      } else {
+        if (confirm(`هل تريد حظر ${userName || 'المستخدم'}؟`)) {
+          await set(dbRef(db, `bans/${deviceId}`), {
+            name: userName || '',
+            role: role || '',
+            timestamp: Date.now()
+          });
+          button.textContent = '✅ فك الحظر';
+          button.style.background = '#28a745';
+          button.dataset.banned = 'true';
+          alert(`${userName || 'المستخدم'} تم حظره ✅`);
+        }
+      }
+    }
+
     window.deleteMessage = async function(id) {
       if (!id) return;
       if (confirm('هل تريد حذف هذه الرسالة؟')) {
@@ -307,19 +338,6 @@
       }
     };
 
-    // حظر مستخدم (بـ deviceId)
-    window.banUser = async function(deviceId, userName) {
-      if (!deviceId || deviceId === 'owner_device') return alert('لا يمكن حظر الرئيس!');
-      if (confirm(`هل تريد حظر ${userName || 'المستخدم'}؟`)) {
-        await set(dbRef(db, `bans/${deviceId}`), {
-          name: userName || '',
-          timestamp: Date.now()
-        });
-        alert(`${userName || 'المستخدم'} تم حظره ✅`);
-      }
-    };
-
-    // حذف كل الرسائل
     clearAllBtn.addEventListener('click', async () => {
       if (confirm('⚠️ هل تريد حذف كل الرسائل؟')) {
         await set(dbRef(db, 'messages'), null);
@@ -328,7 +346,6 @@
       }
     });
 
-    // تسجيل الخروج
     document.getElementById('logoutBtn').addEventListener('click', () => {
       localStorage.removeItem('chat_session');
       window.location.href = 'owner.html';
