@@ -5,6 +5,62 @@
   <title>لوحة الرئيس 👑</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="style/owner-chat.css">
+  <style>
+    /* 🌟 مظهر النافذة المنبثقة للتحكم بالدردشة */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(3px);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal {
+      background: #fff;
+      border-radius: 12px;
+      max-width: 400px;
+      width: 90%;
+      padding: 20px;
+      text-align: center;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from {transform: scale(0.8); opacity: 0;}
+      to {transform: scale(1); opacity: 1;}
+    }
+    .modal h3 {
+      margin-bottom: 15px;
+      font-size: 20px;
+    }
+    .modal textarea {
+      width: 100%;
+      min-height: 80px;
+      resize: vertical;
+      margin-bottom: 10px;
+      padding: 8px;
+    }
+    .modal .options {
+      text-align: right;
+      margin-bottom: 10px;
+    }
+    .modal .buttons {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .btn {
+      cursor: pointer;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 8px;
+    }
+    .btn.primary { background: #007bff; color: white; }
+    .btn.danger { background: #dc3545; color: white; }
+    .btn.success { background: #28a745; color: white; }
+    .btn.gray { background: #ccc; }
+  </style>
 </head>
 <body>
   <header class="top-bar">
@@ -28,12 +84,27 @@
     </div>
   </main>
 
+  <!-- 🌟 النافذة المنبثقة -->
+  <div class="modal-overlay" id="chatControlModal">
+    <div class="modal">
+      <h3>⚙️ إعدادات إغلاق الدردشة</h3>
+      <div class="options">
+        <label><input type="radio" name="chatMode" value="temporary" checked> إيقاف مؤقت</label><br>
+        <label><input type="radio" name="chatMode" value="until_further_notice"> إيقاف حتى إشعار آخر</label>
+      </div>
+      <textarea id="chatMessage" placeholder="اكتب رسالة للمستخدمين أثناء الإغلاق..."></textarea>
+      <div class="buttons">
+        <button id="saveChatSettings" class="btn primary">💾 حفظ</button>
+        <button id="cancelChatSettings" class="btn gray">❌ إلغاء</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ✅ كود Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref as dbRef, onChildAdded, onChildRemoved, remove, set, get, push } 
       from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-    import { getStorage } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCzokitueX9Ph_LNUekRpG0MZxpPkgcEiQ",
@@ -48,37 +119,31 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
-    const storage = getStorage(app);
 
     // عناصر الصفحة
-    const chatContainer = document.getElementById('chatContainer');
     const toggleChatBtn = document.getElementById('toggleChatBtn');
-    const clearAllBtn = document.getElementById('clearAllBtn');
     const logoutBtn = document.getElementById('logoutBtn');
-    const ownerAvatar = document.getElementById('ownerAvatar');
-    const ownerName = document.getElementById('ownerName');
-    const sendBtn = document.getElementById('sendBtn');
+    const chatContainer = document.getElementById('chatContainer');
+    const clearAllBtn = document.getElementById('clearAllBtn');
     const msgText = document.getElementById('msgText');
+    const sendBtn = document.getElementById('sendBtn');
+
+    const modal = document.getElementById('chatControlModal');
+    const saveChatSettings = document.getElementById('saveChatSettings');
+    const cancelChatSettings = document.getElementById('cancelChatSettings');
+    const chatMessageInput = document.getElementById('chatMessage');
 
     let chatOpen = true;
-    const session = JSON.parse(localStorage.getItem('chat_session') || '{}');
-    if (!session || session.role !== 'رئيس') {
-      alert('ليس لديك صلاحية الدخول');
-      window.location.href = 'index.html';
-    }
-
-    ownerAvatar.src = session.avatarUrl || 'icon.png';
-    ownerName.textContent = `${session.name} 👑`;
-
-    // ✅ مراقبة حالة الدردشة (فتح/إغلاق)
     const chatStatusRef = dbRef(db, 'chat_status');
+
+    // تحميل حالة الدردشة
     async function loadChatStatus() {
       const snap = await get(chatStatusRef);
       if (snap.exists()) {
         chatOpen = snap.val().open;
         updateChatButton();
       } else {
-        await set(chatStatusRef, { open: true });
+        await set(chatStatusRef, { open: true, mode: "temporary", message: "" });
       }
     }
     loadChatStatus();
@@ -89,11 +154,35 @@
       toggleChatBtn.classList.toggle('success', !chatOpen);
     }
 
-    toggleChatBtn.addEventListener('click', async () => {
-      chatOpen = !chatOpen;
-      await set(chatStatusRef, { open: chatOpen });
+    // ✅ فتح النافذة المنبثقة عند الضغط
+    toggleChatBtn.addEventListener('click', () => {
+      if (chatOpen) {
+        modal.style.display = 'flex';
+      } else {
+        // فتح الدردشة مباشرة
+        chatOpen = true;
+        set(chatStatusRef, { open: true, mode: "temporary", message: "" });
+        updateChatButton();
+        alert('✅ تم فتح الدردشة من جديد');
+      }
+    });
+
+    cancelChatSettings.addEventListener('click', () => {
+      modal.style.display = 'none';
+    });
+
+    saveChatSettings.addEventListener('click', async () => {
+      const mode = document.querySelector('input[name="chatMode"]:checked').value;
+      const message = chatMessageInput.value.trim() || "الدردشة مغلقة حاليًا.";
+      await set(chatStatusRef, {
+        open: false,
+        mode,
+        message
+      });
+      chatOpen = false;
       updateChatButton();
-      alert(chatOpen ? '✅ تم فتح الدردشة' : '⛔ تم إغلاق الدردشة مؤقتًا');
+      modal.style.display = 'none';
+      alert('⛔ تم إغلاق الدردشة بنجاح');
     });
 
     // 🚪 تسجيل الخروج
@@ -102,91 +191,13 @@
       window.location.href = 'owner.html';
     });
 
-    // 💬 إرسال الرسائل (كرئيس)
-    sendBtn.addEventListener('click', async () => {
-      if (!chatOpen) return alert('❌ الدردشة مغلقة مؤقتًا');
-      const text = msgText.value.trim();
-      if (!text) return;
-
-      const mRef = push(dbRef(db, 'messages'));
-      await set(mRef, {
-        type: 'msg',
-        name: session.name,
-        avatar: session.avatarUrl || '',
-        role: 'رئيس',
-        deviceId: 'owner_device',
-        text,
-        timestamp: Date.now()
-      });
-      msgText.value = '';
-    });
-
-    msgText.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') sendBtn.click();
-    });
-
-    // 📥 استقبال الرسائل
-    const messagesRef = dbRef(db, 'messages');
-    onChildAdded(messagesRef, (snap) => {
-      const msg = snap.val();
-      addMessage(snap.key, msg);
-    });
-
-    onChildRemoved(messagesRef, (snap) => {
-      const el = document.getElementById(`msg-${snap.key}`);
-      if (el) el.remove();
-    });
-
-    // 🧩 عرض الرسائل
-    function addMessage(id, msg) {
-      const div = document.createElement('div');
-      div.className = 'message';
-      div.id = `msg-${id}`;
-      div.innerHTML = `
-        <img src="${msg.avatar}" class="avatar">
-        <div class="content">
-          <div class="meta">
-            <strong>${msg.name}</strong> <span class="role">${msg.role}</span>
-          </div>
-          <div class="text">${msg.text}</div>
-          <div class="actions">
-            <button onclick="deleteMessage('${id}')">🗑️ حذف</button>
-            <button onclick="banUser('${msg.deviceId || ''}', '${msg.name}')">🚫 حظر</button>
-          </div>
-        </div>
-      `;
-      chatContainer.appendChild(div);
-      chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
-
-    // 🗑️ حذف رسالة واحدة
-    window.deleteMessage = async function(id) {
-      if (confirm('هل تريد حذف هذه الرسالة؟')) {
-        await remove(dbRef(db, `messages/${id}`));
-      }
-    };
-
-    // 🚫 حظر مستخدم
-    window.banUser = async function(deviceId, userName) {
-      if (!deviceId || deviceId === 'owner_device') return alert('لا يمكن حظر الرئيس!');
-      if (confirm(`هل تريد حظر ${userName}؟`)) {
-        await set(dbRef(db, `bans/${deviceId}`), {
-          name: userName,
-          timestamp: Date.now()
-        });
-        alert(`${userName} تم حظره ✅`);
-      }
-    };
-
-    // 🧹 حذف كل الرسائل
+    // 🧹 حذف جميع الرسائل
     clearAllBtn.addEventListener('click', async () => {
-      if (confirm('⚠️ هل أنت متأكد أنك تريد حذف جميع الرسائل؟')) {
-        await set(messagesRef, null);
-        alert('✅ تم حذف جميع الرسائل بنجاح');
+      if (confirm('⚠️ هل تريد حذف كل الرسائل؟')) {
+        await set(dbRef(db, 'messages'), null);
+        alert('✅ تم مسح جميع الرسائل');
       }
     });
   </script>
 </body>
 </html>
-
-
