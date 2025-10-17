@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📤 لوحة رفع الفيديوهات - Ishraq Step</title>
+  <link rel="icon" href="icon.jpg" type="image/x-icon">
+  <style>
+    body {
+      font-family: "Cairo", sans-serif;
+      background: linear-gradient(135deg, #4caf50, #00bcd4);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .upload-box {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+      padding: 25px;
+      max-width: 450px;
+      width: 100%;
+      direction: rtl;
+    }
+
+    .upload-box h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin: 10px 0 5px;
+    }
+
+    input[type="text"], textarea, select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 15px;
+      box-sizing: border-box;
+    }
+
+    textarea {
+      resize: none;
+      height: 80px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 15px;
+      background: linear-gradient(90deg, #4caf50, #00bcd4);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+    }
+
+    .message {
+      margin-top: 15px;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .success {
+      color: #2e7d32;
+    }
+
+    .error {
+      color: #c62828;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="upload-box">
+    <h1>📤 نشر فيديو جديد</h1>
+
+    <label for="title">عنوان الفيديو</label>
+    <input type="text" id="title" placeholder="أدخل عنوان الفيديو">
+
+    <label for="description">الوصف</label>
+    <textarea id="description" placeholder="أدخل وصفًا مختصرًا"></textarea>
+
+    <label for="url">رابط فيديو YouTube</label>
+    <input type="text" id="url" placeholder="مثال: https://www.youtube.com/watch?v=XXXXXXX">
+
+    <label for="type">القسم</label>
+    <select id="type">
+      <option value="">اختر القسم</option>
+      <option value="ماث 0">🧮 ماث 0</option>
+      <option value="ماث 1">🧮 ماث 1</option>
+      <option value="انجليزي">🇬🇧 إنجليزي</option>
+      <option value="دوائر كهربائية">🔌 دوائر كهربائية</option>
+      <option value="اخلاقيات المهنه">⚖️ أخلاقيات المهنة</option>
+      <option value="مقدمة حاسب الي">💻 مقدمة حاسب آلي</option>
+      <option value="كورسات اخرى">🧠 كورسات أخرى</option>
+    </select>
+
+    <button id="uploadBtn">🚀 نشر الفيديو</button>
+
+    <div id="message" class="message"></div>
+  </div>
+
+  <!-- Firebase -->
+  <script type="module">
+    import { db } from './js/fb.js';
+    import { push, ref, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    const titleInput = document.getElementById('title');
+    const descriptionInput = document.getElementById('description');
+    const urlInput = document.getElementById('url');
+    const typeSelect = document.getElementById('type');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const messageDiv = document.getElementById('message');
+
+    function convertYouTubeUrl(url) {
+      // تحويل رابط اليوتيوب إلى صيغة embed
+      const match = url.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{7,})/);
+      return match ? `https://www.youtube.com/embed/${match[1]}` : '';
+    }
+
+    uploadBtn.addEventListener('click', async () => {
+      const title = titleInput.value.trim();
+      const description = descriptionInput.value.trim();
+      const originalUrl = urlInput.value.trim();
+      const type = typeSelect.value;
+      const embedUrl = convertYouTubeUrl(originalUrl);
+
+      // ✅ التحقق من المدخلات
+      if (!title || !description || !embedUrl || !type) {
+        showMessage("⚠️ يرجى ملء جميع الحقول بشكل صحيح", "error");
+        return;
+      }
+
+      try {
+        const newRef = push(ref(db, 'courses'));
+        await set(newRef, {
+          title,
+          description,
+          url: embedUrl,
+          type
+        });
+
+        showMessage("✅ تم نشر الفيديو بنجاح!", "success");
+        clearInputs();
+      } catch (error) {
+        console.error(error);
+        showMessage("❌ حدث خطأ أثناء النشر", "error");
+      }
+    });
+
+    function clearInputs() {
+      titleInput.value = '';
+      descriptionInput.value = '';
+      urlInput.value = '';
+      typeSelect.value = '';
+    }
+
+    function showMessage(text, type) {
+      messageDiv.textContent = text;
+      messageDiv.className = `message ${type}`;
+    }
+  </script>
+
+</body>
+</html>
