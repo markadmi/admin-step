@@ -137,7 +137,7 @@
     const clearAllBtn = document.getElementById('clearAllBtn');
     const msgText = document.getElementById('msgText');
     const sendBtn = document.getElementById('sendBtn');
-
+    const btn_update = document.getElementById('btn_update');
     const modal = document.getElementById('chatControlModal');
     const saveChatSettings = document.getElementById('saveChatSettings');
     const cancelChatSettings = document.getElementById('cancelChatSettings');
@@ -346,6 +346,15 @@
       }
     });
 
+    
+
+    // إضافة حدث النقر
+    btn_update.addEventListener('click', function() {
+      window.open('update', '_blank'); 
+      // يمكنك استبدال الرابط بأي رابط تريده
+    });
+
+    
     document.getElementById('logoutBtn').addEventListener('click', () => {
       localStorage.removeItem('chat_session');
       window.location.href = 'owner.html';
@@ -354,3 +363,4 @@
   </script>
 </body>
 </html>
+
