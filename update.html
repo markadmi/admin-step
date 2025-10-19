@@ -155,7 +155,7 @@
 
   <script type="module">
     import { app, db } from "./js/fb.js";
-    import { getDatabase, ref, onValue, push, set, remove, update } 
+    import { ref, onValue, push, set, remove, update } 
       from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     const sections = ["ماث 0","ماث 1","انجليزي","دوائر كهربائية","اخلاقيات المهنه","مقدمة حاسب الي","كورسات اخرى"];
@@ -194,19 +194,20 @@
       typeSelect.value = '';
     }
 
-    // 📌 رفع فيديو
+    // ✅ رفع الفيديو
     uploadBtn.addEventListener('click', async () => {
       const title = titleInput.value.trim();
       const description = descriptionInput.value.trim();
       const originalUrl = urlInput.value.trim();
       const type = typeSelect.value;
       const embedUrl = convertYouTubeUrl(originalUrl);
+
       if (!title || !description || !embedUrl || !type) {
         showMessage("⚠️ يرجى ملء جميع الحقول", "error");
         return;
       }
 
-      const newRef = push(ref(db, `courses/${type}`));
+      const newRef = push(ref(db, `courses`));
       const id = newRef.key;
       const videoData = {
         id,
@@ -222,7 +223,7 @@
       clearInputs();
     });
 
-    // 📌 عرض الفيديوهات
+    // ✅ عرض الفيديوهات حسب الأقسام
     sections.forEach(section => {
       const sectionDiv = document.createElement('div');
       sectionDiv.innerHTML = `<h3 class="section-title">${section}</h3>`;
@@ -230,43 +231,45 @@
       sectionDiv.appendChild(listDiv);
       videosSection.appendChild(sectionDiv);
 
-      const sectionRef = ref(db, `videos/${section}`);
-      onValue(sectionRef, snapshot => {
+      const coursesRef = ref(db, `courses`);
+      onValue(coursesRef, snapshot => {
         listDiv.innerHTML = '';
         if (snapshot.exists()) {
           const data = snapshot.val();
           Object.keys(data).forEach(key => {
             const vid = data[key];
-            const card = document.createElement('div');
-            card.className = 'video-card';
-            card.innerHTML = `
-              <div class="video-info">
-                <h4>${vid.title}</h4>
-                <p>${vid.description}</p>
-              </div>
-              <div class="actions">
-                <button class="edit-btn">✏️</button>
-                <button class="delete-btn">🗑️</button>
-              </div>
-            `;
+            if (vid.type === section) {
+              const card = document.createElement('div');
+              card.className = 'video-card';
+              card.innerHTML = `
+                <div class="video-info">
+                  <h4>${vid.title}</h4>
+                  <p>${vid.description}</p>
+                </div>
+                <div class="actions">
+                  <button class="edit-btn">✏️</button>
+                  <button class="delete-btn">🗑️</button>
+                </div>
+              `;
 
-            // حذف
-            card.querySelector('.delete-btn').addEventListener('click', async () => {
-              if (confirm(`هل تريد حذف "${vid.title}"؟`)) {
-                await remove(ref(db, `videos/${section}/${vid.id}`));
-              }
-            });
+              // 🗑️ حذف
+              card.querySelector('.delete-btn').addEventListener('click', async () => {
+                if (confirm(`هل تريد حذف "${vid.title}"؟`)) {
+                  await remove(ref(db, `courses/${vid.id}`));
+                }
+              });
 
-            // تعديل
-            card.querySelector('.edit-btn').addEventListener('click', () => {
-              currentEditRef = ref(db, `videos/${section}/${vid.id}`);
-              editTitle.value = vid.title;
-              editDescription.value = vid.description;
-              editUrl.value = vid.url.replace('https://www.youtube.com/embed/', 'https://www.youtube.com/watch?v=');
-              editModal.style.display = 'flex';
-            });
+              // ✏️ تعديل
+              card.querySelector('.edit-btn').addEventListener('click', () => {
+                currentEditRef = ref(db, `courses/${vid.id}`);
+                editTitle.value = vid.title;
+                editDescription.value = vid.description;
+                editUrl.value = vid.url.replace('https://www.youtube.com/embed/', 'https://www.youtube.com/watch?v=');
+                editModal.style.display = 'flex';
+              });
 
-            listDiv.appendChild(card);
+              listDiv.appendChild(card);
+            }
           });
         } else {
           listDiv.innerHTML = `<p style="color:#666;">لا توجد فيديوهات بعد</p>`;
@@ -298,5 +301,3 @@
 
 </body>
 </html>
-
-
