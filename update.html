@@ -15,7 +15,6 @@
       align-items: center;
       padding: 20px;
     }
-
     .upload-box {
       background: white;
       border-radius: 16px;
@@ -25,15 +24,8 @@
       width: 100%;
       margin-bottom: 30px;
     }
-
-    .upload-box h1 {
-      text-align: center;
-      margin-bottom: 20px;
-      color: #333;
-    }
-
+    .upload-box h1 { text-align: center; margin-bottom: 20px; color: #333; }
     label { font-weight: bold; display: block; margin: 10px 0 5px; }
-
     input[type="text"], textarea, select {
       width: 100%;
       padding: 10px;
@@ -42,9 +34,7 @@
       font-size: 15px;
       box-sizing: border-box;
     }
-
     textarea { resize: none; height: 80px; }
-
     button {
       width: 100%;
       padding: 12px;
@@ -57,17 +47,10 @@
       cursor: pointer;
       transition: transform 0.2s;
     }
-
     button:hover { transform: translateY(-2px); }
-
-    .message {
-      margin-top: 15px;
-      text-align: center;
-      font-weight: bold;
-    }
+    .message { margin-top: 15px; text-align: center; font-weight: bold; }
     .success { color: #2e7d32; }
     .error { color: #c62828; }
-
     .videos-section {
       background: #fff;
       padding: 15px;
@@ -75,14 +58,12 @@
       max-width: 800px;
       width: 100%;
     }
-
     .section-title {
       font-size: 18px;
       margin-bottom: 10px;
       border-bottom: 2px solid #4caf50;
       padding-bottom: 5px;
     }
-
     .video-card {
       display: flex;
       justify-content: space-between;
@@ -92,19 +73,10 @@
       border-radius: 8px;
       margin-bottom: 8px;
     }
-
-    .video-info {
-      max-width: 70%;
-    }
-
+    .video-info { max-width: 70%; }
     .video-info h4 { margin: 0; font-size: 15px; }
     .video-info p { margin: 2px 0 0; font-size: 13px; color: #666; }
-
-    .actions {
-      display: flex;
-      gap: 5px;
-    }
-
+    .actions { display: flex; gap: 5px; }
     .edit-btn, .delete-btn {
       border: none;
       padding: 6px 10px;
@@ -114,8 +86,6 @@
     }
     .edit-btn { background: #007bff; }
     .delete-btn { background: #dc3545; }
-
-    /* نافذة التعديل */
     .modal-overlay {
       display: none;
       position: fixed;
@@ -184,25 +154,9 @@
   </div>
 
   <script type="module">
-
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref as dbRef, onChildAdded, onChildRemoved, remove, set, get, push } 
+    import { app, db } from "./js/fb.js";
+    import { getDatabase, ref, onValue, push, set, remove, update } 
       from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyCzokitueX9Ph_LNUekRpG0MZxpPkgcEiQ",
-      authDomain: "hacker-withdraw-photos.firebaseapp.com",
-      databaseURL: "https://hacker-withdraw-photos-default-rtdb.firebaseio.com",
-      projectId: "hacker-withdraw-photos",
-      storageBucket: "hacker-withdraw-photos.appspot.com",
-      messagingSenderId: "295892241734",
-      appId: "1:295892241734:web:01b7841226bc8b189b2947",
-      measurementId: "G-QE2VCZY3NX"
-    };
-
-
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
 
     const sections = ["ماث 0","ماث 1","انجليزي","دوائر كهربائية","اخلاقيات المهنه","مقدمة حاسب الي","كورسات اخرى"];
 
@@ -228,6 +182,19 @@
       return match ? `https://www.youtube.com/embed/${match[1]}` : '';
     }
 
+    function showMessage(text, type) {
+      messageDiv.textContent = text;
+      messageDiv.className = `message ${type}`;
+    }
+
+    function clearInputs() {
+      titleInput.value = '';
+      descriptionInput.value = '';
+      urlInput.value = '';
+      typeSelect.value = '';
+    }
+
+    // 📌 رفع فيديو
     uploadBtn.addEventListener('click', async () => {
       const title = titleInput.value.trim();
       const description = descriptionInput.value.trim();
@@ -238,24 +205,24 @@
         showMessage("⚠️ يرجى ملء جميع الحقول", "error");
         return;
       }
+
       const newRef = push(ref(db, `videos/${type}`));
-      await set(newRef, { title, description, url: embedUrl, type });
+      const id = newRef.key;
+      const videoData = {
+        id,
+        title,
+        description,
+        url: embedUrl,
+        type,
+        createdAt: new Date().toISOString()
+      };
+
+      await set(newRef, videoData);
       showMessage("✅ تم نشر الفيديو بنجاح!", "success");
       clearInputs();
     });
 
-    function showMessage(text, type) {
-      messageDiv.textContent = text;
-      messageDiv.className = `message ${type}`;
-    }
-    function clearInputs() {
-      titleInput.value = '';
-      descriptionInput.value = '';
-      urlInput.value = '';
-      typeSelect.value = '';
-    }
-
-    // عرض الفيديوهات
+    // 📌 عرض الفيديوهات
     sections.forEach(section => {
       const sectionDiv = document.createElement('div');
       sectionDiv.innerHTML = `<h3 class="section-title">${section}</h3>`;
@@ -286,13 +253,13 @@
             // حذف
             card.querySelector('.delete-btn').addEventListener('click', async () => {
               if (confirm(`هل تريد حذف "${vid.title}"؟`)) {
-                await remove(ref(db, `videos/${section}/${key}`));
+                await remove(ref(db, `videos/${section}/${vid.id}`));
               }
             });
 
             // تعديل
             card.querySelector('.edit-btn').addEventListener('click', () => {
-              currentEditRef = ref(db, `videos/${section}/${key}`);
+              currentEditRef = ref(db, `videos/${section}/${vid.id}`);
               editTitle.value = vid.title;
               editDescription.value = vid.description;
               editUrl.value = vid.url.replace('https://www.youtube.com/embed/', 'https://www.youtube.com/watch?v=');
@@ -320,11 +287,15 @@
         alert('⚠️ يرجى ملء جميع الحقول بشكل صحيح');
         return;
       }
-      await update(currentEditRef, { title: newTitle, description: newDesc, url: newUrl });
+      await update(currentEditRef, {
+        title: newTitle,
+        description: newDesc,
+        url: newUrl
+      });
       editModal.style.display = 'none';
     });
   </script>
+
 </body>
 </html>
-
 
