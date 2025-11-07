@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>تسجيل الدخول - متجر التطبيقات</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+    <link rel="stylesheet" href="all-css.css" />
+    <style>
+        .auth-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #6e8efb, #4a6cf7);
+            padding: 20px;
+        }
+
+        .auth-box {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 24px;
+            font-weight: 700;
+            color: #4a6cf7;
+        }
+
+        .auth-header {
+            text-align: center;
+            font-size: 20px;
+            margin-bottom: 30px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .input-with-icon {
+            position: relative;
+        }
+
+        .input-with-icon input {
+            width: 100%;
+            padding: 12px 40px 12px 15px;
+            border: 2px solid #eee;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: 0.3s;
+        }
+
+        .input-with-icon input:focus {
+            border-color: #4a6cf7;
+            outline: none;
+        }
+
+        .input-with-icon i {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            background: #4a6cf7;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .btn:hover {
+            background: #3955d1;
+        }
+
+        .divider {
+            text-align: center;
+            margin: 20px 0;
+            position: relative;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 45%;
+            height: 1px;
+            background: #eee;
+        }
+
+        .divider::before { right: 0; }
+        .divider::after { left: 0; }
+
+        .google-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #eee;
+            border-radius: 10px;
+            background: white;
+            color: #333;
+            font-size: 14px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .google-btn:hover {
+            background: #f8f8f8;
+        }
+
+        .google-btn img {
+            width: 20px;
+            margin-left: 10px;
+        }
+
+        .auth-footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .auth-footer a {
+            color: #4a6cf7;
+            text-decoration: none;
+        }
+
+        .auth-footer a:hover {
+            text-decoration: underline;
+        }
+
+        .forgot-password {
+            text-align: left;
+            margin-top: 10px;
+        }
+
+        .forgot-password a {
+            color: #666;
+            font-size: 13px;
+            text-decoration: none;
+        }
+
+        .forgot-password a:hover {
+            color: #4a6cf7;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-box">
+            <div class="logo">
+                <i class="fas fa-store"></i>
+                متجر التطبيقات
+            </div>
+            <div class="auth-header">تسجيل الدخول</div>
+            <div class="auth-body">
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label>البريد الإلكتروني</label>
+                        <div class="input-with-icon">
+                            <input type="email" id="email" required placeholder="أدخل بريدك الإلكتروني" />
+                            <i class="fas fa-envelope"></i>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>كلمة المرور</label>
+                        <div class="input-with-icon">
+                            <input type="password" id="password" required placeholder="أدخل كلمة المرور" />
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <div class="forgot-password">
+                            <a href="forgot.html">نسيت كلمة المرور؟</a>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn">تسجيل الدخول</button>
+                </form>
+
+                <div class="divider">أو</div>
+
+                <button id="googleLogin" class="google-btn">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google">
+                    تسجيل الدخول مع Google
+                </button>
+
+                <div class="auth-footer">
+                    ليس لديك حساب؟ <a href="register.html">إنشاء حساب جديد</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- إضافة مكتبة Firebase -->
+    <script type="module">
+        import app from './scripts/my-firebase-app/src/firebase-config.js';
+        import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+
+        const auth = getAuth(app);
+
+        // تسجيل الدخول العادي
+        document.getElementById('loginForm').onsubmit = (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+
+            signInWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    const user = userCredential.user;
+                    showSuccessMessage('مرحبًا بعودتك، ' + user.email + '!');
+                    setTimeout(() => window.location.href = 'index.html', 1500);
+                })
+                .catch((error) => {
+                    showErrorMessage('البريد أو كلمة المرور غير صحيحة!');
+                });
+        };
+
+        // تسجيل الدخول مع Google
+        document.getElementById('googleLogin').onclick = () => {
+            const provider = new GoogleAuthProvider();
+            signInWithPopup(auth, provider)
+                .then((result) => {
+                    const user = result.user;
+                    showSuccessMessage('مرحبًا بك، ' + user.displayName + '!');
+                    setTimeout(() => window.location.href = 'index.html', 1500);
+                })
+                .catch((error) => {
+                    showErrorMessage('حدث خطأ أثناء تسجيل الدخول مع Google');
+                    console.error(error);
+                });
+        };
+
+        // دوال مساعدة لعرض الرسائل
+        function showSuccessMessage(message) {
+            const alert = document.createElement('div');
+            alert.className = 'alert success';
+            alert.textContent = message;
+            document.body.appendChild(alert);
+            setTimeout(() => alert.remove(), 3000);
+        }
+
+        function showErrorMessage(message) {
+            const alert = document.createElement('div');
+            alert.className = 'alert error';
+            alert.textContent = message;
+            document.body.appendChild(alert);
+            setTimeout(() => alert.remove(), 3000);
+        }
+    </script>
+</body>
+</html>
